@@ -20,21 +20,21 @@ try:
     if USE_SUPABASE:
         # Connection to Supabase
         conn = psycopg2.connect(
-            host=os.getenv("DB_HOST", "your-project.supabase.co"),
+            host=os.getenv("DB_HOST", "db.hbdiwdfzryzvbexbehyr.supabase.co"),
             port=os.getenv("DB_PORT", "5432"),
-            user=os.getenv("DB_USER", "postgres"),
-            password=os.getenv("DB_PASSWORD", "your-password"),
-            dbname=os.getenv("DB_NAME", "postgres"),
+            user=os.getenv("DB_USER", "DeathMoonerg"),
+            password=os.getenv("DB_PASSWORD", "5AY2ZV2zJXVNDJJZ"),
+            dbname=os.getenv("DB_NAME", "sales_db"),
             sslmode="require"
         )
         db_type = "Supabase"
     else:
         # Connection to local PostgreSQL
         conn = psycopg2.connect(
-            host=os.getenv("DB_HOST", "localhost"),
+            host=os.getenv("DB_HOST", "db.hbdiwdfzryzvbexbehyr.supabase.co"),
             port=os.getenv("DB_PORT", "5432"),
-            user=os.getenv("DB_USER", "postgres"),
-            password=os.getenv("DB_PASSWORD", "iqbal"),
+            user=os.getenv("DB_USER", "DeathMoonerg"),
+            password=os.getenv("DB_PASSWORD", "5AY2ZV2zJXVNDJJZ"),
             dbname=os.getenv("DB_NAME", "sales_db")
         )
         db_type = "PostgreSQL Local"
