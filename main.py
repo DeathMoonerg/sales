@@ -5,9 +5,19 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
+import sys
+import os
+
+# Add the current directory to path to import config
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import fungsi dari config.py
-from config import *
+try:
+    from config import *
+except Exception as e:
+    st.error(f"❌ Gagal mengimport config.py: {str(e)}")
+    st.info("💡 Pastikan file config.py ada dan database sudah terkoneksi")
+    st.stop()
 
 # Set konfigurasi halaman dashboard
 st.set_page_config("Dashboard", page_icon="📊", layout="wide")  # Judul, ikon, tata letak lebar
