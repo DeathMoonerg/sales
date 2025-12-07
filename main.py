@@ -22,38 +22,52 @@ except Exception as e:
 # Set konfigurasi halaman dashboard
 st.set_page_config("Dashboard", page_icon="📊", layout="wide")  # Judul, ikon, tata letak lebar
 
-# Ambil data pelanggan
-result_customers = view_customers()
+# Ambil data pelanggan dengan error handling
+@st.cache_data
+def load_customers():
+    try:
+        result = view_customers()
+        if not result:
+            st.warning("⚠️ Data pelanggan kosong")
+            return pd.DataFrame()
+        df = pd.DataFrame(result, columns=[
+            "customer_id", "name", "email", "phone", "address", "birthdate", 
+        ])
+        df['birthdate'] = pd.to_datetime(df['birthdate'])
+        df['Age'] = (datetime.now() - df['birthdate']).dt.days // 365
+        return df
+    except Exception as e:
+        st.error(f"❌ Gagal memuat data pelanggan: {str(e)}")
+        return pd.DataFrame()
 
-df_customers = pd.DataFrame(result_customers, columns=[
-    "customer_id", "name", "email", "phone", "address", "birthdate", 
-])
-
-# Hitung usia dari birthdate
-df_customers['birthdate'] = pd.to_datetime(df_customers['birthdate']) #merubah tipe string menjadi datetime
-df_customers['Age'] = (datetime.now() - df_customers['birthdate']).dt.days // 365 # waktu sekarang - dt.days : mengambil jumlah harinya saja dari selisih tersebut / 365.
+df_customers = load_customers()
 
 # Fungsi tampilkan tabel + export CSV
 def tabelCustomers_dan_export():
-    # Hitung jumlah pelanggan
-    total_customers = df_customers.shape[0]
+    try:
+        # Hitung jumlah pelanggan
+        total_customers = df_customers.shape[0]
+        
+        if total_customers == 0:
+            st.warning("⚠️ Data pelanggan kosong. Belum ada pelanggan di database.")
+            return
 
-    # Tampilkan metrik
-    col1, col2, col3 = st.columns(3) # Fungsi st.columns(3) membuat tiga kolom sejajar di tampilan web Streamlit, menjadi tiga bagian horizontal — col1, col2, dan col3.
-    with col1:
-        st.metric(label="📦 Total Pelanggan", value=total_customers, delta="Semua Data")
+        # Tampilkan metrik
+        col1, col2, col3 = st.columns(3) # Fungsi st.columns(3) membuat tiga kolom sejajar di tampilan web Streamlit, menjadi tiga bagian horizontal — col1, col2, dan col3.
+        with col1:
+            st.metric(label="📦 Total Pelanggan", value=total_customers, delta="Semua Data")
 
-    # Sidebar: Filter Rentang Usia
-    with st.sidebar.expander("🔍 Filter Data Pelanggan", expanded=True):
-        st.markdown("**Filter Rentang Usia**")
-        min_age = int(df_customers['Age'].min())
-        max_age = int(df_customers['Age'].max())
-        # Pastikan max_value > min_value
-        if max_age <= min_age:
-            max_age = min_age + 1
-        age_range = st.slider(
-        "Pilih Rentang Usia",
-            min_value=min_age,
+        # Sidebar: Filter Rentang Usia
+        with st.sidebar.expander("🔍 Filter Data Pelanggan", expanded=True):
+            st.markdown("**Filter Rentang Usia**")
+            min_age = int(df_customers['Age'].min())
+            max_age = int(df_customers['Age'].max())
+            # Pastikan max_value > min_value
+            if max_age <= min_age:
+                max_age = min_age + 1
+            age_range = st.slider(
+            "Pilih Rentang Usia",
+                min_value=min_age,
             max_value=max_age,
             value=(min_age, max_age),
             help="Geser untuk memilih rentang usia yang ingin ditampilkan"
@@ -91,29 +105,38 @@ def tabelCustomers_dan_export():
         file_name='data_pelanggan.csv',
         mime='text/csv'
     )
+    
+    except Exception as e:
+        st.error(f"❌ Gagal memuat data pelanggan: {str(e)}")
 
 # ============================================
 # FUNGSI VISUALISASI PRODUCTS
 # ============================================
 def visualisasiProducts():
-    # Ambil data products
-    result_products = view_products()
-    df_products = pd.DataFrame(result_products, columns=[
-        "product_id", "name", "description", "price", "stock"
-    ])
-    
-    # Konversi ke numeric
-    df_products['price'] = pd.to_numeric(df_products['price'], errors='coerce')
-    df_products['stock'] = pd.to_numeric(df_products['stock'], errors='coerce')
-    
-    # Filter di sidebar
-    with st.sidebar.expander("🔍 Filter Data Produk", expanded=True):
-        st.markdown("**Filter Rentang Harga**")
-        min_price = float(df_products['price'].min())
-        max_price = float(df_products['price'].max())
-        # Pastikan max_value > min_value
-        if max_price <= min_price:
-            max_price = min_price + 1000.0
+    try:
+        # Ambil data products
+        result_products = view_products()
+        
+        if not result_products:
+            st.warning("⚠️ Data produk kosong. Belum ada produk di database.")
+            return
+            
+        df_products = pd.DataFrame(result_products, columns=[
+            "product_id", "name", "description", "price", "stock"
+        ])
+        
+        # Konversi ke numeric
+        df_products['price'] = pd.to_numeric(df_products['price'], errors='coerce')
+        df_products['stock'] = pd.to_numeric(df_products['stock'], errors='coerce')
+        
+        # Filter di sidebar
+        with st.sidebar.expander("🔍 Filter Data Produk", expanded=True):
+            st.markdown("**Filter Rentang Harga**")
+            min_price = float(df_products['price'].min())
+            max_price = float(df_products['price'].max())
+            # Pastikan max_value > min_value
+            if max_price <= min_price:
+                max_price = min_price + 1000.0
         price_range = st.slider(
             "Pilih Rentang Harga (Rp)",
             min_value=min_price,
@@ -353,37 +376,46 @@ def visualisasiProducts():
             detail_stok_rendah['Nilai Inventori'] = detail_stok_rendah['price'] * detail_stok_rendah['stock']
             detail_stok_rendah = detail_stok_rendah.sort_values('stock')
             st.dataframe(detail_stok_rendah, use_container_width=True, hide_index=True)
+    
+    except Exception as e:
+        st.error(f"❌ Gagal memuat data produk: {str(e)}")
 
 # ============================================
 # FUNGSI VISUALISASI ORDERS
 # ============================================
 def visualisasiOrders():
-    # Ambil data orders
-    result_orders = view_orders_with_customers()
-    df_orders = pd.DataFrame(result_orders, columns=[
-        "order_id", "order_date", "total_amount", "customer_name", "phone"
-    ])
-    
-    # Konversi order_date ke datetime
-    df_orders['order_date'] = pd.to_datetime(df_orders['order_date'])
-    df_orders['month'] = df_orders['order_date'].dt.to_period('M').astype(str)
-    df_orders['day'] = df_orders['order_date'].dt.date
-    
-    # Konversi total_amount ke numeric
-    df_orders['total_amount'] = pd.to_numeric(df_orders['total_amount'], errors='coerce')
-    
-    # Filter di sidebar
-    with st.sidebar.expander("🔍 Filter Data Pesanan", expanded=True):
-        st.markdown("**Filter Rentang Tanggal**")
-        date_range = st.date_input(
-            "Pilih Rentang Tanggal",
-            value=(df_orders['day'].min(), df_orders['day'].max()),
-            min_value=df_orders['day'].min(),
-            max_value=df_orders['day'].max(),
-            help="Pilih tanggal mulai dan akhir untuk memfilter data pesanan"
-        )
+    try:
+        # Ambil data orders
+        result_orders = view_orders_with_customers()
         
-        st.markdown("---")
+        if not result_orders:
+            st.warning("⚠️ Data pesanan kosong. Belum ada pesanan di database.")
+            return
+            
+        df_orders = pd.DataFrame(result_orders, columns=[
+            "order_id", "order_date", "total_amount", "customer_name", "phone"
+        ])
+        
+        # Konversi order_date ke datetime
+        df_orders['order_date'] = pd.to_datetime(df_orders['order_date'])
+        df_orders['month'] = df_orders['order_date'].dt.to_period('M').astype(str)
+        df_orders['day'] = df_orders['order_date'].dt.date
+        
+        # Konversi total_amount ke numeric
+        df_orders['total_amount'] = pd.to_numeric(df_orders['total_amount'], errors='coerce')
+        
+        # Filter di sidebar
+        with st.sidebar.expander("🔍 Filter Data Pesanan", expanded=True):
+            st.markdown("**Filter Rentang Tanggal**")
+            date_range = st.date_input(
+                "Pilih Rentang Tanggal",
+                value=(df_orders['day'].min(), df_orders['day'].max()),
+                min_value=df_orders['day'].min(),
+                max_value=df_orders['day'].max(),
+                help="Pilih tanggal mulai dan akhir untuk memfilter data pesanan"
+            )
+            
+            st.markdown("---")
         st.markdown("**Filter Rentang Total Amount**")
         min_amount = float(df_orders['total_amount'].min())
         max_amount = float(df_orders['total_amount'].max())
@@ -536,40 +568,49 @@ def visualisasiOrders():
         )
         fig_customers.update_xaxes(tickangle=-45)
         st.plotly_chart(fig_customers, use_container_width=True)
+    
+    except Exception as e:
+        st.error(f"❌ Gagal memuat data pesanan: {str(e)}")
 
 # ============================================
 # FUNGSI VISUALISASI ORDER DETAILS
 # ============================================
 def visualisasiOrderDetails():
-    # Ambil data order details
-    result_order_details = view_order_details_with_info()
-    df_order_details = pd.DataFrame(result_order_details, columns=[
-        "order_detail_id", "order_id", "order_date", "customer_id", "customer_name",
-        "product_id", "product_name", "unit_price", "quantity", "subtotal",
-        "order_total", "phone"
-    ])
-    
-    # Konversi order_date ke datetime
-    df_order_details['order_date'] = pd.to_datetime(df_order_details['order_date'])
-    df_order_details['day'] = df_order_details['order_date'].dt.date
-    
-    # Konversi kolom numeric
-    df_order_details['subtotal'] = pd.to_numeric(df_order_details['subtotal'], errors='coerce')
-    df_order_details['quantity'] = pd.to_numeric(df_order_details['quantity'], errors='coerce')
-    df_order_details['unit_price'] = pd.to_numeric(df_order_details['unit_price'], errors='coerce')
-    
-    # Filter di sidebar
-    with st.sidebar.expander("🔍 Filter Data Detail Pesanan", expanded=True):
-        st.markdown("**Filter berdasarkan Produk**")
-        product_filter = st.multiselect(
-            "Pilih Produk",
-            options=sorted(df_order_details['product_name'].unique()),
-            default=[],
-            help="Pilih satu atau lebih produk untuk memfilter data"
-        )
+    try:
+        # Ambil data order details
+        result_order_details = view_order_details_with_info()
         
-        st.markdown("---")
-        st.markdown("**Filter Rentang Tanggal**")
+        if not result_order_details:
+            st.warning("⚠️ Data detail pesanan kosong.")
+            return
+            
+        df_order_details = pd.DataFrame(result_order_details, columns=[
+            "order_detail_id", "order_id", "order_date", "customer_id", "customer_name",
+            "product_id", "product_name", "unit_price", "quantity", "subtotal",
+            "order_total", "phone"
+        ])
+        
+        # Konversi order_date ke datetime
+        df_order_details['order_date'] = pd.to_datetime(df_order_details['order_date'])
+        df_order_details['day'] = df_order_details['order_date'].dt.date
+        
+        # Konversi kolom numeric
+        df_order_details['subtotal'] = pd.to_numeric(df_order_details['subtotal'], errors='coerce')
+        df_order_details['quantity'] = pd.to_numeric(df_order_details['quantity'], errors='coerce')
+        df_order_details['unit_price'] = pd.to_numeric(df_order_details['unit_price'], errors='coerce')
+        
+        # Filter di sidebar
+        with st.sidebar.expander("🔍 Filter Data Detail Pesanan", expanded=True):
+            st.markdown("**Filter berdasarkan Produk**")
+            product_filter = st.multiselect(
+                "Pilih Produk",
+                options=sorted(df_order_details['product_name'].unique()),
+                default=[],
+                help="Pilih satu atau lebih produk untuk memfilter data"
+            )
+            
+            st.markdown("---")
+            st.markdown("**Filter Rentang Tanggal**")
         date_range = st.date_input(
             "Pilih Rentang Tanggal",
             value=(df_order_details['day'].min(), df_order_details['day'].max()),
@@ -782,6 +823,9 @@ def visualisasiOrderDetails():
                 markers=True
             )
             st.plotly_chart(fig_rev, use_container_width=True)
+    
+    except Exception as e:
+        st.error(f"❌ Gagal memuat data detail pesanan: {str(e)}")
 
 # ============================================
 # SIDEBAR NAVIGASI
